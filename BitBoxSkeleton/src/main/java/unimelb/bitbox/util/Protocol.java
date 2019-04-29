@@ -48,5 +48,83 @@ public class Protocol {
         return document;
     }
 
-    //TODO 组织其他的protocol
+    public static Document fileDeleteRequest(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_DELETE_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document fileDeleteResponse(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_Delete_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document fileModifyRequest(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_MODIFY_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document fileModifyResponse(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_MODIFY_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document directoryCreateRequest(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_CREATE_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document directoryCreateResponse(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_CREATE_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document directoryDeleteRequest(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_DELETE_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document directoryDeleteResponse(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_DELETE_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document fileBytesRequest(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_BYTES_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document fileBytesResponse(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_BYTES_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
 }
