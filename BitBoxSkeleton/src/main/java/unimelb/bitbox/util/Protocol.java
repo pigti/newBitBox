@@ -18,6 +18,25 @@ public class Protocol {
     public static final String FILE_BYTES_REQUEST = "FILE_BYTES_REQUEST";
     public static final String FILE_BYTES_RESPONSE = "FILE_BYTES_RESPONSE";
 
+    public static Document invalidProtocol(String message) {
+        Document document = new Document();
+        document.append("command", INVALID_PROTOCOL);
+        document.append("message", message);
+        return document;
+    }
+
+    public static Document connectionRefused(String message, String port) {
+        Document document = new Document();
+        document.append("command", CONNECTION_REFUSED);
+        document.append("message", message);
+
+        // not sure what type the peers are of
+        // list of ?? 
+        HostPort hostPort = new HostPort(Configuration.getConfigurationValue("advertisedName")+":"+port);
+        document.append("hostPort", hostPort.toDoc());
+        return document;
+    }
+
     public static Document handShakeRequest(String port) {
         Document document = new Document();
         document.append("command", HANDSHAKE_REQUEST);
@@ -28,7 +47,9 @@ public class Protocol {
 
     public static Document handShakeResponse() {
         Document document = new Document();
-        document.append("command", HANDSHAKE_RESPONSE);   
+        document.append("command", HANDSHAKE_RESPONSE);
+        HostPort hostPort = new HostPort(Configuration.getConfigurationValue("advertisedName")+":"+port);
+        document.append("hostPort", hostPort.toDoc());
         return document;
     }
 
@@ -40,13 +61,105 @@ public class Protocol {
         return document;
     }
 
-    public static Document fileCreateResponse(Document fileDescriptor, String pathName) {
+    public static Document fileCreateResponse(Document fileDescriptor, String pathName, String message, Boolean status) {
         Document document = new Document();
         document.append("command", Protocol.FILE_CREATE_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        document.append("message",message);
+        document.append("status", status);
+        return document;
+    }
+
+    public static Document fileBytesRequest(Document fileDescriptor, String pathName, Integer pos, Integer len) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_BYTES_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        document.append("position", pos);
+        document.append("length", len);
+        return document;
+    }
+
+    public static Document fileBytesResponse(Document fileDescriptor, String pathName, Integer pos, Integer len,
+                                             String cont, String mes, Boolean st) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_BYTES_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        document.append("position", pos);
+        document.append("length", len);
+        document.append("content", cont);
+        document.append("message",mes);
+        document.append("status", st);
+        return document;
+    }
+
+    public static Document fileDeleteRequest(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_DELETE_REQUEST);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
         return document;
     }
 
-    //TODO other protocol
+    public static Document fileDeleteResponse(Document fileDescriptor, String pathName, String message, Boolean status) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_DELETE_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        document.append("message",message);
+        document.append("status", status);
+        return document;
+    }
+
+    public static Document fileModifyRequest(Document fileDescriptor, String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_MODIFY_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document fileModifyResponse(Document fileDescriptor, String pathName, String message, Boolean status) {
+        Document document = new Document();
+        document.append("command", Protocol.FILE_MODIFY_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        document.append("message",message);
+        document.append("status", status);
+        return document;
+    }
+
+    public static Document directoryCreateRequest(String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_CREATE_REQUEST);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document directoryCreateResponse(String pathName, String message, Boolean status) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_CREATE_RESPONSE);
+        document.append("pathName", pathName);
+        document.append("message",message);
+        document.append("status", status);
+        return document;
+    }
+
+    public static Document directoryDeleteRequest(String pathName) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_DELETE_REQUEST);
+        document.append("pathName", pathName);
+        return document;
+    }
+
+    public static Document directoryDeleteResponse(String pathName, String message, Boolean status) {
+        Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_DELETE_RESPONSE);
+        document.append("pathName", pathName);
+        document.append("message",message);
+        document.append("status", status);
+        return document;
+    }
 }
