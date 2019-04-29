@@ -52,13 +52,14 @@ public class Client implements Runnable {
 			final WebSocketClient socketClient = new WebSocketClient(new URI("ws://" + peer)) {
 				@Override
 				public void onOpen(ServerHandshake serverHandshake) {
-					write(this, Protocol.handShakeRequest(peer.split(":")[1]).toString());
+					String locAddr = this.getLocalSocketAddress().toString().substring(1);
+					write(this, Protocol.handShakeRequest(locAddr).toString());
 					sockets.add(this);
 				}
 
 				@Override
 				public void onMessage(String msg) {
-					System.out.println("Message received from the server: \nMessage: " + msg);
+					System.out.println("<Client> Message Received. \n<Message> " + msg);
 
 					try {
 						JSONParser parser = new JSONParser();
@@ -101,14 +102,14 @@ public class Client implements Runnable {
 
 				@Override
 				public void onClose(int i, String msg, boolean b) {
-					System.out.println("Client connection closed: " + msg);
+					System.out.println("<Client> Connection closed: "  + "\n<Warning> " + msg);
 					sockets.remove(this);
 					unconnected.add(peer);
 				}
 
 				@Override
 				public void onError(Exception e) {
-					System.out.println("Client connection failed: " + e.getLocalizedMessage());
+					System.out.println("<Client> Connection failed: " + "\n<Error> " + e.getLocalizedMessage());
 					sockets.remove(this);
 				}
 			};
@@ -119,7 +120,7 @@ public class Client implements Runnable {
 	}
 
 	public void write(WebSocket ws, String message) {
-		System.out.println("Client is sending to port: " + ws.getRemoteSocketAddress().getPort() + "\nMessage:" + message);
+		System.out.println("<Client> Sending message to port: " + ws.getRemoteSocketAddress().getPort() + "\n<Message> " + message);
 		ws.send(message);
 	}
 

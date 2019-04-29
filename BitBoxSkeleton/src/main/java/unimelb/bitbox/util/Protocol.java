@@ -1,5 +1,7 @@
 package unimelb.bitbox.util;
 
+import java.util.ArrayList;
+
 public class Protocol {
     public static final String INVALID_PROTOCOL = "INVALID_PROTOCOL";
     public static final String CONNECTION_REFUSED = "CONNECTION_REFUSED";
@@ -18,20 +20,37 @@ public class Protocol {
     public static final String FILE_BYTES_REQUEST = "FILE_BYTES_REQUEST";
     public static final String FILE_BYTES_RESPONSE = "FILE_BYTES_RESPONSE";
 
-    public static Document handShakeRequest(String port) {
+    public static Document handShakeRequest(String addr) {
         Document document = new Document();
         document.append("command", HANDSHAKE_REQUEST);
-        HostPort hostPort = new HostPort(Configuration.getConfigurationValue("advertisedName")+":"+port);
+        HostPort hostPort = new HostPort(addr);
         document.append("hostPort", hostPort.toDoc());
         return document;
     }
 
-    public static Document handShakeResponse() {
+    public static Document handShakeResponse(String port) {
         Document document = new Document();
-        document.append("command", HANDSHAKE_RESPONSE);   
+        document.append("command", HANDSHAKE_RESPONSE);
+        HostPort hostPort = new HostPort(Configuration.getConfigurationValue("advertisedName")+":"+port);
+        document.append("hostPort", hostPort.toDoc());
         return document;
     }
-
+    
+    public static Document connectionRefused(ArrayList<HostPort> hp) {
+        Document document = new Document();
+        document.append("command", CONNECTION_REFUSED);
+        document.append("message", "connection limit reached");
+        String hpDoc = "[";
+        for(HostPort hostPort: hp) {
+        	hpDoc += hostPort.toDoc().toString();
+        	hpDoc += ",";
+        }
+        hpDoc = hpDoc.substring(0,hpDoc.length()-2);
+        hpDoc += "]";
+        document.append("peers", hpDoc);
+        return document;
+    }
+    
     public static Document fileCreateRequest(Document fileDescriptor, String pathName) {
         Document document = new Document();
         document.append("command", Protocol.FILE_CREATE_REQUEST);
