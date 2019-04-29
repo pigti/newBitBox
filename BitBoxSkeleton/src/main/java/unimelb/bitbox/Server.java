@@ -56,7 +56,7 @@ public class Server {
 						} 
 						break;
 					case Protocol.FILE_CREATE_REQUEST:
-						write(webSocket, serverMain.fileCreateHandler(request));
+						write(webSocket, serverMain.createRequestHandler(request));
 						break;
 					case Protocol.FILE_BYTES_REQUEST:
 						// TODO
@@ -87,7 +87,6 @@ public class Server {
 			}
 
 			public void onStart() {
-
 			}
 		};
 		socketServer.start();

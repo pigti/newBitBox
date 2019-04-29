@@ -17,10 +17,12 @@ import java.util.List;
 public class Client implements Runnable {
 
 	private List<WebSocket> sockets = new ArrayList<WebSocket>();
+	protected ServerMain serverMain;
 	private String[] peers;
 	private ArrayList<String> unconnected;
 
-	public Client(String[] peers) {
+	public Client(ServerMain serverMain, String[] peers) {
+		this.serverMain = serverMain;
 		this.peers = peers;
 		unconnected = new ArrayList<>(Arrays.asList(peers));
 		this.run();
@@ -75,7 +77,11 @@ public class Client implements Runnable {
 							// TODO
 							break;
 						case Protocol.FILE_CREATE_RESPONSE:
-							// TODO
+							if((response.getBoolean("status") == true)) {
+								write(this, serverMain.createResponseHandler(response));
+							} else {
+								System.out.println("<Client> File Create Failed : "  + "\n<Exception> " + response.getString("message"));
+							}
 							break;
 						case Protocol.FILE_BYTES_RESPONSE:
 							// TODO

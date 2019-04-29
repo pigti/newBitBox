@@ -247,6 +247,7 @@ public class FileSystemManager extends Thread {
 	   * there was an IO error accessing the file system.
 	   */
 	public boolean isSafePathName(String pathName) {
+		System.out.println(root+FileSystems.getDefault().getSeparator()+pathName);
 		File file = new File(root+FileSystems.getDefault().getSeparator()+pathName);
 		String cannonicalName;
 		try {
