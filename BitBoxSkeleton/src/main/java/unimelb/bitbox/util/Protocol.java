@@ -18,17 +18,17 @@ public class Protocol {
     public static final String FILE_BYTES_REQUEST = "FILE_BYTES_REQUEST";
     public static final String FILE_BYTES_RESPONSE = "FILE_BYTES_RESPONSE";
 
-    public static Document handShakeRequest() {
+    public static Document handShakeRequest(String port) {
         Document document = new Document();
         document.append("command", HANDSHAKE_REQUEST);
-        HostPort hostPort = new HostPort(Configuration.getConfigurationValue("advertisedName")+":"+Configuration.getConfigurationValue("port"));
+        HostPort hostPort = new HostPort(Configuration.getConfigurationValue("advertisedName")+":"+port);
         document.append("hostPort", hostPort.toDoc());
         return document;
     }
 
     public static Document handShakeResponse() {
         Document document = new Document();
-        document.append("command", HANDSHAKE_RESPONSE);
+        document.append("command", HANDSHAKE_RESPONSE);   
         return document;
     }
 
@@ -48,83 +48,5 @@ public class Protocol {
         return document;
     }
 
-    public static Document fileDeleteRequest(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.FILE_DELETE_REQUEST);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document fileDeleteResponse(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.FILE_Delete_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document fileModifyRequest(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.FILE_MODIFY_REQUEST);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document fileModifyResponse(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.FILE_MODIFY_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document directoryCreateRequest(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.DIRECTORY_CREATE_REQUEST);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document directoryCreateResponse(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.DIRECTORY_CREATE_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document directoryDeleteRequest(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.DIRECTORY_DELETE_REQUEST);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document directoryDeleteResponse(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.DIRECTORY_DELETE_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document fileBytesRequest(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.FILE_BYTES_REQUEST);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
-
-    public static Document fileBytesResponse(Document fileDescriptor, String pathName) {
-        Document document = new Document();
-        document.append("command", Protocol.FILE_BYTES_RESPONSE);
-        document.append("fileDescriptor", fileDescriptor);
-        document.append("pathName", pathName);
-        return document;
-    }
+    //TODO other protocol
 }

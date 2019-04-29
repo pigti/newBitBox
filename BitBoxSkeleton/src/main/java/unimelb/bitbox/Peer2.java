@@ -6,7 +6,7 @@ import java.util.logging.Logger;
 
 import unimelb.bitbox.util.Configuration;
 
-public class Peer
+public class Peer2
 {
 	private static Logger log = Logger.getLogger(Peer.class.getName());
     public static void main( String[] args ) throws IOException, NumberFormatException, NoSuchAlgorithmException
@@ -16,10 +16,9 @@ public class Peer
         log.info("BitBox Peer starting...");
         Configuration.getConfiguration();
         
-        int port = Integer.parseInt(Configuration.getConfigurationValue("port1"));
-        String[] peers = Configuration.getConfigurationValue("peers1").split(",");
+        int port = Integer.parseInt(Configuration.getConfigurationValue("port2"));
+        String[] peers = Configuration.getConfigurationValue("peers2").split(",");
         
         new ServerMain(port, peers);
-        
     }
 }
