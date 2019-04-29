@@ -44,22 +44,32 @@ public class Server {
 					Document request = new Document((JSONObject) parser.parse(msg));
 					switch (request.getString("command")) {
 					case Protocol.HANDSHAKE_REQUEST:
-						if (sockets.size() < Integer.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"))) {
+						// Refuse the handshake and return the list of peers
+						if (sockets.size() < Integer
+								.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"))) {
 							write(webSocket, Protocol.handShakeResponse(Integer.toString(port)).toString());
 							sockets.add(webSocket);
 						} else {
-							ArrayList <HostPort> hp = new ArrayList<>();
-							for(WebSocket ws: sockets) {
+							ArrayList<HostPort> hp = new ArrayList<>();
+							for (WebSocket ws : sockets) {
 								hp.add(new HostPort(ws.getRemoteSocketAddress().toString().substring(1)));
 							}
 							write(webSocket, Protocol.connectionRefused(hp).toString());
-						} 
+						}
 						break;
 					case Protocol.FILE_CREATE_REQUEST:
-						write(webSocket, serverMain.createRequestHandler(request));
+						String response1 = serverMain.createRequestHandler(request);
+						write(webSocket, response1);
+						request = new Document((JSONObject) parser.parse(response1));
+						if(request.getBoolean("status")==true) {
+							write(webSocket, serverMain.byteRequestGenerator(request));
+						}
 						break;
-					case Protocol.FILE_BYTES_REQUEST:
-						// TODO
+					case Protocol.FILE_BYTES_RESPONSE:
+						String result = serverMain.byteResponseHandler(request);
+						if (result != null)
+							write(webSocket, result);
+						else System.out.println("<Server> The file transfer is Completed if no error message is shown.");
 						break;
 					case Protocol.DIRECTORY_CREATE_REQUEST:
 						// TODO
@@ -68,7 +78,7 @@ public class Server {
 						// TODO
 						break;
 					case Protocol.FILE_DELETE_REQUEST:
-						// TODO
+						write(webSocket, serverMain.deleteRequestHandler(request));
 						break;
 					case Protocol.FILE_MODIFY_REQUEST:
 						// TODO
@@ -94,8 +104,8 @@ public class Server {
 	}
 
 	public void write(WebSocket ws, String message) {
-		System.out.println("<Server> Sending message to port: " + ws.getRemoteSocketAddress().getPort()
-				+ "\n<Message> " + message);
+		System.out.println("<Server> Sending message to port: " + ws.getRemoteSocketAddress().getPort() + "\n<Message> "
+				+ message);
 		ws.send(message);
 	}
 }

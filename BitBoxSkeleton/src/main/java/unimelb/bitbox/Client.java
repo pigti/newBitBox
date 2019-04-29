@@ -78,13 +78,13 @@ public class Client implements Runnable {
 							break;
 						case Protocol.FILE_CREATE_RESPONSE:
 							if((response.getBoolean("status") == true)) {
-								write(this, serverMain.createResponseHandler(response));
+								System.out.println("File loader is ready");
 							} else {
 								System.out.println("<Client> File Create Failed : "  + "\n<Exception> " + response.getString("message"));
 							}
 							break;
-						case Protocol.FILE_BYTES_RESPONSE:
-							// TODO
+						case Protocol.FILE_BYTES_REQUEST:
+							write(this,serverMain.fileByteRequestHandler(response));
 							break;
 						case Protocol.DIRECTORY_CREATE_RESPONSE:
 							// TODO

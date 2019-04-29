@@ -66,14 +66,29 @@ public class Protocol {
         document.append("pathName", pathName);
         return document;
     }
-
-    //TODO other protocol
+    
+    public static Document fileBytesRequest(Document fileDescriptor, String pathName){
+        Document document = new Document();
+        document.append("command", Protocol.FILE_BYTES_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+    
     public static Document fileBytesResponse(Document fileDescriptor, String pathName){
         Document document = new Document();
         document.append("command", Protocol.FILE_BYTES_RESPONSE);
         document.append("fileDescriptor", fileDescriptor);
         document.append("pathName", pathName);
         document.append("position", "0");
+        return document;
+    }
+    
+    public static Document fileDeleteRequest(Document fileDescriptor, String pathName){
+    	Document document = new Document();
+        document.append("command", Protocol.FILE_DELETE_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
         return document;
     }
     

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.Base64.Decoder;
 import java.util.logging.Logger;
 
 import unimelb.bitbox.util.*;
@@ -57,13 +58,14 @@ public class ServerMain implements FileSystemObserver {
 		}
 	}
 
-	//Handler for a file create <event>, generate a <request> for create a file
+	// Handler for a file create <event>, generate a <request> for create a file
 	private void fileCreateHandler(FileSystemEvent fileSystemEvent) {
 		Document request = Protocol.fileCreateRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
 		peerClient.broadcast(request.toJson());
 	}
-	
-	//Handler for a file create <request>, <response> the status of the file loader for a new file
+
+	// Handler for a file create <request>, <response> the status of the file loader
+	// for a new file
 	public String createRequestHandler(Document request) {
 		Document fileDescriptor = (Document) request.get("fileDescriptor");
 		String pathName = request.getString("pathName");
@@ -79,7 +81,7 @@ public class ServerMain implements FileSystemObserver {
 			if (!fileSystemManager.isSafePathName(pathName)) {
 				message = "Unsafe pathname given";
 				status = false;
-			} else if (fileSystemManager.checkShortcut(pathName)){
+			} else if (fileSystemManager.checkShortcut(pathName)) {
 				message = "ShortCut Found.";
 				status = false;
 			} else {
@@ -103,38 +105,40 @@ public class ServerMain implements FileSystemObserver {
 		}
 		return response.toJson();
 	}
-	
-	/*Handler for a file create <response>, which can be regarded as a request
-	  <response> the file bytes regarding to the response*/
-	public String createResponseHandler(Document request) {
+
+	// Handler for a file create <event>, generate a <request> for delete a file
+	private void fileDeleteHandler(FileSystemEvent fileSystemEvent) {
+		Document request = Protocol.fileDeleteRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
+		peerClient.broadcast(request.toJson());
+	}
+
+	// Handler for a file delete <request>, <response> the status of the file loader
+	// for a new file
+	public String deleteRequestHandler(Document request) {
 		Document fileDescriptor = (Document) request.get("fileDescriptor");
 		String pathName = request.getString("pathName");
 		String md5 = fileDescriptor.getString("md5");
-		long fileSize = fileDescriptor.getLong("fileSize");
+		long lastModified = fileDescriptor.getLong("lastModified");
 
-		Document response = Protocol.fileBytesResponse(fileDescriptor, pathName);
+		Document response = Protocol.fileCreateResponse(fileDescriptor, pathName);
+
 		try {
-			long max = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
-			long length = fileSize <= max ? fileSize : max;
-			ByteBuffer bb = fileSystemManager.readFile(md5, 0, length);
-			//Use base 64 encoder to encode the content
-			if(bb!=null) {
-			response.append("length", length);
-			Base64.Encoder encoder = Base64.getEncoder();
-			bb.position(0);
-			byte[]bs = new byte[bb.remaining()];
-			bb.get(bs);
-			String content = encoder.encodeToString(bs);
-			response.append("content", content);
-			response.append("status", "true");
-			response.append("message", "successful read");
+			String message;
+			boolean status;
+			if (!fileSystemManager.isSafePathName(pathName)) {
+				message = "Unsafe pathname given";
+				status = false;
 			} else {
-				response.append("length", 0);
-				response.append("content", "");
-				response.append("status", "false");
-				response.append("message", "unsuccessful read");
+				status = fileSystemManager.deleteFile(pathName, lastModified, md5);
+				message = "deleted successfully";
+				if (!status) {
+					if (fileSystemManager.fileNameExists(pathName, md5)) {
+						message = "file does not exist";
+					}
+				}
 			}
-			
+			response.append("message", message);
+			response.append("status", status);
 		} catch (Exception e) {
 			e.printStackTrace();
 			// TODO: Handle exceptions with different message
@@ -144,12 +148,101 @@ public class ServerMain implements FileSystemObserver {
 		return response.toJson();
 	}
 
-	private void fileDeleteHandler(FileSystemEvent fileSystemEvent) {
-		
+	// Generate a <request> for data, after creating a file loading or receive a
+	// piece of data
+	public String byteRequestGenerator(Document request) {
+		Document fileDescriptor = (Document) request.get("fileDescriptor");
+		String pathName = request.getString("pathName");
+		long fileSize = fileDescriptor.getLong("fileSize");
+		long max = Long.parseLong(Configuration.getConfigurationValue("blockSize"));
+		long length;
+
+		Document response = Protocol.fileBytesRequest(fileDescriptor, pathName);
+
+		if (request.getString("command").equals(Protocol.FILE_CREATE_RESPONSE)) {
+			length = fileSize <= max ? fileSize : max;
+			response.append("position", 0);
+			response.append("length", length);
+		} else if (request.getString("command").equals(Protocol.FILE_BYTES_RESPONSE)) {
+			long position = request.getLong("length");
+			length = fileSize <= (position + max) ? fileSize : max;
+			response.append("position", position);
+			response.append("length", length);
+		}
+		return response.toJson();
 	}
 
-	public void fileDeleteHandler(Document request) {
+	/*
+	 * Handler for a file create <response>, which can be regarded as a request
+	 * <response> the file bytes regarding to the response
+	 */
+	public String fileByteRequestHandler(Document request) {
+		Document fileDescriptor = (Document) request.get("fileDescriptor");
+		String pathName = request.getString("pathName");
+		String md5 = fileDescriptor.getString("md5");
+		long fileSize = fileDescriptor.getLong("fileSize");
+		long position = request.getLong("position");
+		long length = request.getLong("length");
 
+		Document response = Protocol.fileBytesResponse(fileDescriptor, pathName);
+		try {
+			ByteBuffer bb = fileSystemManager.readFile(md5, position, length);
+			// Use base 64 encoder to encode the content
+			if (bb != null && position + length <= fileSize) {
+				response.append("position", position);
+				response.append("length", length);
+				Base64.Encoder encoder = Base64.getEncoder().withoutPadding();
+				bb.position(0);
+				byte[] bs = new byte[bb.remaining()];
+				bb.get(bs);
+				String content = encoder.encodeToString(bs);
+				response.append("content", content);
+				response.append("status", "true");
+				response.append("message", "successful read");
+			} else {
+				response.append("position", 0);
+				response.append("length", 0);
+				response.append("content", "");
+				response.append("status", "false");
+				response.append("message", "unsuccessful read");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			// TODO: Handle exceptions with different message
+			response.append("message", "internal server error");
+			response.append("status", "false");
+		}
+		return response.toJson();
+	}
+
+	public String byteResponseHandler(Document request) {
+		Document fileDescriptor = (Document) request.get("fileDescriptor");
+		String pathName = request.getString("pathName");
+		String md5 = fileDescriptor.getString("md5");
+		long fileSize = fileDescriptor.getLong("fileSize");
+		String content = request.getString("content");
+		long position = request.getLong("position");
+		long length = request.getLong("length");
+
+		if(position + length < fileSize) {
+			return byteRequestGenerator(request);
+		} else {
+			try {
+				Base64.Decoder decoder = Base64.getDecoder();
+				byte[] bs= new byte[(int)length];
+				bs = decoder.decode(content);
+				ByteBuffer bb = ByteBuffer.wrap(bs);
+				boolean status = fileSystemManager.writeFile(pathName, bb, position);
+				if(!status) 
+					throw new Exception("Write Failure");
+				//status = fileSystemManager.WriteComplete(pathName);
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println("<Error> Write Byte Failure!");
+			}
+		}
+		return null;
 	}
 
 	private void directoryCreateHandler(FileSystemEvent fileSystemEvent) {
