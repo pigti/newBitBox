@@ -29,17 +29,17 @@ public class Server {
     public void initP2PServer(int port) {
         final WebSocketServer socketServer = new WebSocketServer(new InetSocketAddress(port)) {
             public void onOpen(WebSocket webSocket, ClientHandshake clientHandshake) {
-                write(webSocket, "服务端连接成功");
+                write(webSocket, Protocol.handShakeResponse().toString());
                 sockets.add(webSocket);
             }
 
             public void onClose(WebSocket webSocket, int i, String s, boolean b) {
-                System.out.println("connection failed to peer:" + webSocket.getRemoteSocketAddress());
+                System.out.println("Connection failed to peer:" + webSocket.getRemoteSocketAddress());
                 sockets.remove(webSocket);
             }
 
             public void onMessage(WebSocket webSocket, String msg) {
-                System.out.println("接收到客户端消息：" + msg);
+                System.out.println("Message received from the client: \n Message:" + msg);
 
                 try {
                     JSONParser parser = new JSONParser();
@@ -75,7 +75,7 @@ public class Server {
             }
 
             public void onError(WebSocket webSocket, Exception e) {
-                System.out.println("connection failed to peer:" + webSocket.getRemoteSocketAddress());
+                System.out.println("Connection failed to peer:" + webSocket.getRemoteSocketAddress());
                 sockets.remove(webSocket);
             }
 
@@ -84,11 +84,11 @@ public class Server {
             }
         };
         socketServer.start();
-        System.out.println("listening websocket p2p port on: " + port);
+        System.out.println("Listening websocket p2p port on: " + port);
     }
 
     public void write(WebSocket ws, String message) {
-        System.out.println("发送给" + ws.getRemoteSocketAddress().getPort() + "的p2p消息:" + message);
+        System.out.println("Server is sending from port: " + ws.getRemoteSocketAddress().getPort() + "\nMessage: " + message);
         ws.send(message);
     }
 }

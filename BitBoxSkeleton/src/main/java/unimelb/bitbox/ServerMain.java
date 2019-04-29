@@ -12,24 +12,20 @@ public class ServerMain implements FileSystemObserver {
 	protected FileSystemManager fileSystemManager;
 	protected Server peerServer;
 	protected Client peerClient;
-	
-	public ServerMain() throws NumberFormatException, IOException, NoSuchAlgorithmException {
+
+	public ServerMain(int serverPort, String[] peers) throws NumberFormatException, IOException, NoSuchAlgorithmException {
 		fileSystemManager=new FileSystemManager(Configuration.getConfigurationValue("path"),this);
-		initServer();
-		initClient();
+		initServer(serverPort);
+		initClient(peers);
 	}
 
-	private void initServer() {
+	private void initServer(int serverPort) {
         peerServer = new Server(this);
-        peerServer.initP2PServer(Integer.parseInt(Configuration.getConfigurationValue("port")));
+        peerServer.initP2PServer(serverPort);
     }
 
-    private void initClient() {
-        peerClient = new Client();
-        String[] peers = Configuration.getConfigurationValue("peers").split(",");
-        for (String peer: peers) {
-            peerClient.connectToPeer(peer);
-        }
+    public void initClient(String[] peers) {
+        peerClient = new Client(peers);
     }
 
 	@Override
@@ -130,5 +126,5 @@ public class ServerMain implements FileSystemObserver {
     private void invalidEventHandler(Document request) {
 
     }
-	
+
 }
