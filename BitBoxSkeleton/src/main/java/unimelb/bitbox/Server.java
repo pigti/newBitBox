@@ -71,14 +71,14 @@ public class Server {
 							write(webSocket, result);
 						else System.out.println("<Server> The file transfer is Completed if no error message is shown.");
 						break;
-					case Protocol.DIRECTORY_CREATE_REQUEST:
-						// TODO
-						break;
-					case Protocol.DIRECTORY_DELETE_REQUEST:
-						// TODO
-						break;
 					case Protocol.FILE_DELETE_REQUEST:
 						write(webSocket, serverMain.deleteRequestHandler(request));
+						break;
+					case Protocol.DIRECTORY_CREATE_REQUEST:
+						write(webSocket, serverMain.createDirRequestHandler(request));
+						break;
+					case Protocol.DIRECTORY_DELETE_REQUEST:
+						write(webSocket, serverMain.deleteDirRequestHandler(request));
 						break;
 					case Protocol.FILE_MODIFY_REQUEST:
 						// TODO

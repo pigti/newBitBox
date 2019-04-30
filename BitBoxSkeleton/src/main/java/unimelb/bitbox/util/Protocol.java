@@ -92,4 +92,40 @@ public class Protocol {
         return document;
     }
     
+    public static Document fileDeleteResponse(Document fileDescriptor, String pathName){
+    	Document document = new Document();
+        document.append("command", Protocol.FILE_DELETE_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+    
+    public static Document dirCreateRequest(String pathName) {
+    	Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_CREATE_REQUEST);
+        document.append("pathName", pathName);
+        return document;
+    }
+    
+    public static Document dirCreateResponse(String pathName) {
+    	Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_CREATE_RESPONSE);
+        document.append("pathName", pathName);
+        return document;
+    }
+    
+    public static Document dirDeleteRequest(String pathName) {
+    	Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_DELETE_REQUEST);
+        document.append("pathName", pathName);
+        return document;
+    }
+    
+    public static Document dirDeleteResponse(String pathName) {
+    	Document document = new Document();
+        document.append("command", Protocol.DIRECTORY_DELETE_RESPONSE);
+        document.append("pathName", pathName);
+        return document;
+    }
+    
 }
