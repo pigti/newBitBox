@@ -128,4 +128,19 @@ public class Protocol {
         return document;
     }
     
+    public static Document fileModifyRequest(Document fileDescriptor, String pathName) {
+    	Document document = new Document();
+        document.append("command", Protocol.FILE_MODIFY_REQUEST);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
+    
+    public static Document fileModifyResponse(Document fileDescriptor, String pathName) {
+    	Document document = new Document();
+        document.append("command", Protocol.FILE_MODIFY_RESPONSE);
+        document.append("fileDescriptor", fileDescriptor);
+        document.append("pathName", pathName);
+        return document;
+    }
 }

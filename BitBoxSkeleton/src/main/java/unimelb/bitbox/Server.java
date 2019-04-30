@@ -81,7 +81,12 @@ public class Server {
 						write(webSocket, serverMain.deleteDirRequestHandler(request));
 						break;
 					case Protocol.FILE_MODIFY_REQUEST:
-						// TODO
+						String response1m = serverMain.modifyFileRequestHandler(request);
+						write(webSocket, response1m);
+						request = new Document((JSONObject) parser.parse(response1m));
+						if(request.getBoolean("status")==true) {
+							write(webSocket, serverMain.byteRequestGenerator(request));
+						}
 						break;
 					default:
 						break;

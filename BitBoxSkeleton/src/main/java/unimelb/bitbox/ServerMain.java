@@ -36,33 +36,29 @@ public class ServerMain implements FileSystemObserver {
 	public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
 		// process events
 		System.out.println(fileSystemEvent);
+		Document request = null;
 		switch (fileSystemEvent.event) {
 		case FILE_CREATE:
-			fileCreateHandler(fileSystemEvent);
+			request = Protocol.fileCreateRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
 			break;
 		case FILE_DELETE:
-			fileDeleteHandler(fileSystemEvent);
+			request = Protocol.fileDeleteRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
 			break;
 		case DIRECTORY_CREATE:
-			dirCreateHandler(fileSystemEvent);
+			request = Protocol.dirCreateRequest(fileSystemEvent.pathName);
 			break;
 		case DIRECTORY_DELETE:
-			 dirDeleteHandler(fileSystemEvent);
-			// TODO
+			request = Protocol.dirDeleteRequest(fileSystemEvent.pathName);
 			break;
 		case FILE_MODIFY:
-			// TODO
+			request = Protocol.fileModifyRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
 			break;
 		default:
 			// TODO
 			break;
 		}
-	}
-
-	// Handler for a file create <event>, generate a <request> for create a file
-	private void fileCreateHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.fileCreateRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
+		if (request != null)
+			peerClient.broadcast(request.toJson());
 	}
 
 	// Handler for a file create <request>, <response> the status of the file loader
@@ -105,12 +101,6 @@ public class ServerMain implements FileSystemObserver {
 			response.append("status", "false");
 		}
 		return response.toJson();
-	}
-
-	// Handler for a file create <event>, generate a <request> for delete a file
-	private void fileDeleteHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.fileDeleteRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
 	}
 
 	// Handler for a file delete <request>, <response> the status of the file loader
@@ -158,7 +148,8 @@ public class ServerMain implements FileSystemObserver {
 
 		Document response = Protocol.fileBytesRequest(fileDescriptor, pathName);
 
-		if (request.getString("command").equals(Protocol.FILE_CREATE_RESPONSE)) {
+		if (request.getString("command").equals(Protocol.FILE_CREATE_RESPONSE)
+				|| request.getString("command").equals(Protocol.FILE_MODIFY_RESPONSE)) {
 			length = fileSize <= max ? fileSize : max;
 			response.append("position", 0);
 			response.append("length", length);
@@ -249,13 +240,6 @@ public class ServerMain implements FileSystemObserver {
 		return null;
 	}
 
-	// Handler for a directoryCreation <event>, generate a <request> for delete a
-	// file
-	private void dirCreateHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.dirCreateRequest(fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
-	}
-
 	public String createDirRequestHandler(Document request) {
 		String pathName = request.getString("pathName");
 
@@ -285,13 +269,6 @@ public class ServerMain implements FileSystemObserver {
 		return response.toJson();
 	}
 
-	// Handler for a directoryCreation <event>, generate a <request> for delete a
-	// file
-	private void dirDeleteHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.dirDeleteRequest(fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
-	}
-	
 	public String deleteDirRequestHandler(Document request) {
 		String pathName = request.getString("pathName");
 
@@ -320,12 +297,37 @@ public class ServerMain implements FileSystemObserver {
 		return response.toJson();
 	}
 
-	private void fileModifyHandler(FileSystemEvent fileSystemEvent) {
+	public String modifyFileRequestHandler(Document request) {
+		Document fileDescriptor = (Document) request.get("fileDescriptor");
+		String pathName = request.getString("pathName");
+		String md5 = fileDescriptor.getString("md5");
+		long lastModified = fileDescriptor.getLong("lastModified");
 
-	}
+		Document response = Protocol.fileModifyResponse(fileDescriptor, pathName);
 
-	public void fileModifyHandler(Document request) {
+		try {
+			String message;
+			boolean status;
 
+			if (!fileSystemManager.isSafePathName(pathName)) {
+				message = "Unsafe pathname given";
+				status = false;
+			} else {
+				status = fileSystemManager.modifyFileLoader(pathName, md5, lastModified);
+				message = "file loader ready";
+				if (!status) {
+					message = "it is not a valid modification";
+				}
+			}
+			response.append("message", message);
+			response.append("status", status);
+		} catch (Exception e) {
+			e.printStackTrace();
+			// TODO: Handle exceptions with different message
+			response.append("message", "internal server error");
+			response.append("status", "false");
+		}
+		return response.toJson();
 	}
 
 	private void invalidEventHandler(Document request) {
