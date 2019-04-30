@@ -12,41 +12,37 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
-public class Client implements Runnable {
-
-	private List<WebSocket> sockets = new ArrayList<WebSocket>();
+public class Client {
 	protected ServerMain serverMain;
-	private String[] peers;
 	private ArrayList<String> unconnected;
 
 	public Client(ServerMain serverMain, String[] peers) {
 		this.serverMain = serverMain;
-		this.peers = peers;
 		unconnected = new ArrayList<>(Arrays.asList(peers));
-		this.run();
-	}
-
-	public List<WebSocket> getSockets() {
-		return sockets;
-	}
-
-	public void run() {
-		while (unconnected.size() != 0) {
-			for (int i = 0; i < peers.length; i++) {
-				String peer = peers[i];
-				if (unconnected.contains(peer)) {
-					unconnected.remove(peers[i]);
-					this.connectToPeer(peers[i]);
+		Client c = this;
+		//Retry when no connections are available
+		Thread t = new Thread() {
+			public void run() {
+				while (true) {
+					if (unconnected.size() != 0) {
+						for (int i = 0; i < peers.length; i++) {
+							String peer = peers[i];
+							if (unconnected.contains(peer)) {
+								unconnected.remove(peers[i]);
+								c.connectToPeer(peers[i]);
+							}
+						}
+					}
+					try {
+						Thread.sleep(5000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
 			}
-			try {
-				Thread.sleep(5000);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
+		};
+		t.start();
 	}
 
 	public void connectToPeer(String peer) {
@@ -56,7 +52,6 @@ public class Client implements Runnable {
 				public void onOpen(ServerHandshake serverHandshake) {
 					String locAddr = this.getLocalSocketAddress().toString().substring(1);
 					write(this, Protocol.handShakeRequest(locAddr).toString());
-					sockets.add(this);
 				}
 
 				@Override
@@ -68,35 +63,36 @@ public class Client implements Runnable {
 						Document response = new Document((JSONObject) parser.parse(msg));
 						switch (response.getString("command")) {
 						case Protocol.INVALID_PROTOCOL:
-							// TODO
+							this.close();
+							// Close the connection when the protocol is invalid
 							break;
 						case Protocol.CONNECTION_REFUSED:
-							// TODO
+							// Close the connection when connection is refused
+							this.close();
 							break;
 						case Protocol.HANDSHAKE_RESPONSE:
-							// TODO
+							// sync after handshake
+							serverMain.sync(this);
+							// add the socket into the serverMain
+							serverMain.addSocket(this);
 							break;
 						case Protocol.FILE_CREATE_RESPONSE:
-							if((response.getBoolean("status") == true)) {
-								System.out.println("File loader is ready");
-							} else {
-								System.out.println("<Client> File Create Failed : "  + "\n<Exception> " + response.getString("message"));
-							}
+							// do Nothing
 							break;
 						case Protocol.FILE_BYTES_REQUEST:
-							write(this,serverMain.fileByteRequestHandler(response));
+							write(this, serverMain.fileByteRequestHandler(response));
 							break;
 						case Protocol.DIRECTORY_CREATE_RESPONSE:
-							// TODO
+							// noThing to do
 							break;
 						case Protocol.DIRECTORY_DELETE_RESPONSE:
-							// TODO
+							// noThing to do
 							break;
 						case Protocol.FILE_DELETE_RESPONSE:
-							// TODO
+							// noThing to do
 							break;
 						case Protocol.FILE_MODIFY_RESPONSE:
-							// TODO
+							// noThing to do
 							break;
 						default:
 							break;
@@ -108,15 +104,20 @@ public class Client implements Runnable {
 
 				@Override
 				public void onClose(int i, String msg, boolean b) {
-					System.out.println("<Client> Connection closed: "  + "\n<Warning> " + msg);
-					sockets.remove(this);
-					unconnected.add(peer);
+					System.out.println("<Client> Connection closed: " + "\n<Warning> " + msg);
+					if (!unconnected.contains(peer)) {
+						unconnected.add(peer);
+					}
+					serverMain.delSocket(this);
 				}
 
 				@Override
 				public void onError(Exception e) {
 					System.out.println("<Client> Connection failed: " + "\n<Error> " + e.getLocalizedMessage());
-					sockets.remove(this);
+					if (!unconnected.contains(peer)) {
+						unconnected.add(peer);
+					}
+					serverMain.delSocket(this);
 				}
 			};
 			socketClient.connect();
@@ -126,18 +127,8 @@ public class Client implements Runnable {
 	}
 
 	public void write(WebSocket ws, String message) {
-		System.out.println("<Client> Sending message to port: " + ws.getRemoteSocketAddress().getPort() + "\n<Message> " + message);
+		System.out.println("<Client> Sending message to port: " + ws.getRemoteSocketAddress().getPort() + "\n<Message> "
+				+ message);
 		ws.send(message);
-	}
-
-	public void broadcast(String message) {
-		if (sockets.size() == 0) {
-			return;
-		}
-		System.out.println("===Start===");
-		for (WebSocket socket : sockets) {
-			this.write(socket, message);
-		}
-		System.out.println("===End===");
 	}
 }
