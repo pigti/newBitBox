@@ -18,7 +18,8 @@ public class Peer2
         
         int port = Integer.parseInt(Configuration.getConfigurationValue("port2"));
         String[] peers = Configuration.getConfigurationValue("peers2").split(",");
+        String path = Configuration.getConfigurationValue("path2");
         
-        new ServerMain(port, peers);
+        new ServerMain(port, peers, path);
     }
 }

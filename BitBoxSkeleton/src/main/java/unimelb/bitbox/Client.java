@@ -17,10 +17,12 @@ import java.util.List;
 public class Client implements Runnable {
 
 	private List<WebSocket> sockets = new ArrayList<WebSocket>();
+	protected ServerMain serverMain;
 	private String[] peers;
 	private ArrayList<String> unconnected;
 
-	public Client(String[] peers) {
+	public Client(ServerMain serverMain, String[] peers) {
+		this.serverMain = serverMain;
 		this.peers = peers;
 		unconnected = new ArrayList<>(Arrays.asList(peers));
 		this.run();
@@ -52,13 +54,14 @@ public class Client implements Runnable {
 			final WebSocketClient socketClient = new WebSocketClient(new URI("ws://" + peer)) {
 				@Override
 				public void onOpen(ServerHandshake serverHandshake) {
-					write(this, Protocol.handShakeRequest(peer.split(":")[1]).toString());
+					String locAddr = this.getLocalSocketAddress().toString().substring(1);
+					write(this, Protocol.handShakeRequest(locAddr).toString());
 					sockets.add(this);
 				}
 
 				@Override
 				public void onMessage(String msg) {
-					System.out.println("Message received from the server: \nMessage: " + msg);
+					System.out.println("<Client> Message Received. \n<Message> " + msg);
 
 					try {
 						JSONParser parser = new JSONParser();
@@ -74,10 +77,14 @@ public class Client implements Runnable {
 							// TODO
 							break;
 						case Protocol.FILE_CREATE_RESPONSE:
-							// TODO
+							if((response.getBoolean("status") == true)) {
+								System.out.println("File loader is ready");
+							} else {
+								System.out.println("<Client> File Create Failed : "  + "\n<Exception> " + response.getString("message"));
+							}
 							break;
-						case Protocol.FILE_BYTES_RESPONSE:
-							// TODO
+						case Protocol.FILE_BYTES_REQUEST:
+							write(this,serverMain.fileByteRequestHandler(response));
 							break;
 						case Protocol.DIRECTORY_CREATE_RESPONSE:
 							// TODO
@@ -101,14 +108,14 @@ public class Client implements Runnable {
 
 				@Override
 				public void onClose(int i, String msg, boolean b) {
-					System.out.println("Client connection closed: " + msg);
+					System.out.println("<Client> Connection closed: "  + "\n<Warning> " + msg);
 					sockets.remove(this);
 					unconnected.add(peer);
 				}
 
 				@Override
 				public void onError(Exception e) {
-					System.out.println("Client connection failed: " + e.getLocalizedMessage());
+					System.out.println("<Client> Connection failed: " + "\n<Error> " + e.getLocalizedMessage());
 					sockets.remove(this);
 				}
 			};
@@ -119,7 +126,7 @@ public class Client implements Runnable {
 	}
 
 	public void write(WebSocket ws, String message) {
-		System.out.println("Client is sending to port: " + ws.getRemoteSocketAddress().getPort() + "\nMessage:" + message);
+		System.out.println("<Client> Sending message to port: " + ws.getRemoteSocketAddress().getPort() + "\n<Message> " + message);
 		ws.send(message);
 	}
 
