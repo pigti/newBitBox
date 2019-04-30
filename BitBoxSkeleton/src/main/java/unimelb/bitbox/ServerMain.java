@@ -164,8 +164,9 @@ public class ServerMain implements FileSystemObserver {
 			response.append("position", 0);
 			response.append("length", length);
 		} else if (request.getString("command").equals(Protocol.FILE_BYTES_RESPONSE)) {
-			long position = request.getLong("length");
-			length = fileSize <= (position + max) ? fileSize : max;
+			long position = request.getLong("length") + request.getLong("position");
+			length = fileSize <= (position + max) ? fileSize : (position + max);
+			length -= position;
 			response.append("position", position);
 			response.append("length", length);
 		}
@@ -219,28 +220,28 @@ public class ServerMain implements FileSystemObserver {
 	public String byteResponseHandler(Document request) {
 		Document fileDescriptor = (Document) request.get("fileDescriptor");
 		String pathName = request.getString("pathName");
-		String md5 = fileDescriptor.getString("md5");
 		long fileSize = fileDescriptor.getLong("fileSize");
 		String content = request.getString("content");
 		long position = request.getLong("position");
 		long length = request.getLong("length");
-
-		if(position + length < fileSize) {
-			return byteRequestGenerator(request);
-		} else {
-			try {
-				Base64.Decoder decoder = Base64.getDecoder();
-				byte[] bs= new byte[(int)length];
-				bs = decoder.decode(content);
-				ByteBuffer bb = ByteBuffer.wrap(bs);
-				boolean status = fileSystemManager.writeFile(pathName, bb, position);
-				if(!status) 
+		try {
+			Base64.Decoder decoder = Base64.getDecoder();
+			byte[] bs = new byte[(int) length];
+			bs = decoder.decode(content);
+			ByteBuffer bb = ByteBuffer.wrap(bs);
+			boolean status = fileSystemManager.writeFile(pathName, bb, position);
+			if (!status)
+				throw new Exception("Write Failure");
+			if (position + length < fileSize)
+				return byteRequestGenerator(request);
+			else {
+				if (!status)
 					throw new Exception("Write Failure");
-				//status = fileSystemManager.WriteComplete(pathName);
-			} catch (Exception e) {
-				e.printStackTrace();
-				System.out.println("<Error> Write Byte Failure!");
+				status = fileSystemManager.checkWriteComplete(pathName);
 			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			System.out.println("<Error> Write Byte Failure!");
 		}
 		return null;
 	}
