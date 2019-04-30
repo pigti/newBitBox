@@ -44,9 +44,10 @@ public class ServerMain implements FileSystemObserver {
 			fileDeleteHandler(fileSystemEvent);
 			break;
 		case DIRECTORY_CREATE:
-			// TODO
+			dirCreateHandler(fileSystemEvent);
 			break;
 		case DIRECTORY_DELETE:
+			 dirDeleteHandler(fileSystemEvent);
 			// TODO
 			break;
 		case FILE_MODIFY:
@@ -120,7 +121,7 @@ public class ServerMain implements FileSystemObserver {
 		String md5 = fileDescriptor.getString("md5");
 		long lastModified = fileDescriptor.getLong("lastModified");
 
-		Document response = Protocol.fileCreateResponse(fileDescriptor, pathName);
+		Document response = Protocol.fileDeleteResponse(fileDescriptor, pathName);
 
 		try {
 			String message;
@@ -132,9 +133,7 @@ public class ServerMain implements FileSystemObserver {
 				status = fileSystemManager.deleteFile(pathName, lastModified, md5);
 				message = "deleted successfully";
 				if (!status) {
-					if (fileSystemManager.fileNameExists(pathName, md5)) {
-						message = "file does not exist";
-					}
+					message = "file does not exist";
 				}
 			}
 			response.append("message", message);
@@ -217,6 +216,10 @@ public class ServerMain implements FileSystemObserver {
 		return response.toJson();
 	}
 
+	/*
+	 * Handler for a byte file <response>, which decodes the response, write to the
+	 * file, and commit the change if file write completed
+	 */
 	public String byteResponseHandler(Document request) {
 		Document fileDescriptor = (Document) request.get("fileDescriptor");
 		String pathName = request.getString("pathName");
@@ -246,20 +249,75 @@ public class ServerMain implements FileSystemObserver {
 		return null;
 	}
 
-	private void directoryCreateHandler(FileSystemEvent fileSystemEvent) {
-
+	// Handler for a directoryCreation <event>, generate a <request> for delete a
+	// file
+	private void dirCreateHandler(FileSystemEvent fileSystemEvent) {
+		Document request = Protocol.dirCreateRequest(fileSystemEvent.pathName);
+		peerClient.broadcast(request.toJson());
 	}
 
-	public void directoryCreateHandler(Document request) {
+	public String createDirRequestHandler(Document request) {
+		String pathName = request.getString("pathName");
 
+		Document response = Protocol.dirCreateResponse(pathName);
+
+		try {
+			String message;
+			boolean status;
+			if (!fileSystemManager.isSafePathName(pathName)) {
+				message = "Unsafe pathname given";
+				status = false;
+			} else {
+				status = fileSystemManager.makeDirectory(pathName);
+				message = "directory created";
+				if (!status) {
+					message = "pathname alreay exist";
+				}
+			}
+			response.append("message", message);
+			response.append("status", status);
+		} catch (Exception e) {
+			e.printStackTrace();
+			// TODO: Handle exceptions with different message
+			response.append("message", "internal server error");
+			response.append("status", "false");
+		}
+		return response.toJson();
 	}
 
-	private void directoryDeleteHandler(FileSystemEvent fileSystemEvent) {
-
+	// Handler for a directoryCreation <event>, generate a <request> for delete a
+	// file
+	private void dirDeleteHandler(FileSystemEvent fileSystemEvent) {
+		Document request = Protocol.dirDeleteRequest(fileSystemEvent.pathName);
+		peerClient.broadcast(request.toJson());
 	}
+	
+	public String deleteDirRequestHandler(Document request) {
+		String pathName = request.getString("pathName");
 
-	public void directoryDeleteHandler(Document request) {
-
+		Document response = Protocol.dirDeleteResponse(pathName);
+		try {
+			String message;
+			boolean status;
+			if (!fileSystemManager.isSafePathName(pathName)) {
+				message = "Unsafe pathname given";
+				status = false;
+			} else {
+				status = fileSystemManager.deleteDirectory(pathName);
+				message = "directory created";
+				if (!status) {
+					message = "pathname alreay deleted";
+				}
+			}
+			response.append("message", message);
+			response.append("status", status);
+		} catch (Exception e) {
+			e.printStackTrace();
+			// TODO: Handle exceptions with different message
+			response.append("message", "internal server error");
+			response.append("status", "false");
+		}
+		return response.toJson();
 	}
 
 	private void fileModifyHandler(FileSystemEvent fileSystemEvent) {

@@ -75,10 +75,10 @@ public class Server {
 						write(webSocket, serverMain.deleteRequestHandler(request));
 						break;
 					case Protocol.DIRECTORY_CREATE_REQUEST:
-						// TODO
+						write(webSocket, serverMain.createDirRequestHandler(request));
 						break;
 					case Protocol.DIRECTORY_DELETE_REQUEST:
-						// TODO
+						write(webSocket, serverMain.deleteDirRequestHandler(request));
 						break;
 					case Protocol.FILE_MODIFY_REQUEST:
 						// TODO
