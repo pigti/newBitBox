@@ -21,6 +21,5 @@ public class Peer
         String path = Configuration.getConfigurationValue("path1");
         
         new ServerMain(port, peers, path);
-        
     }
-}
+}	

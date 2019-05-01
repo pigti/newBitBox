@@ -88,18 +88,6 @@ public class Document {
 		return obj.toJSONString();
 	}
 	
-	public static Document parse(String json) {
-		JSONParser parser = new JSONParser();
-		try {
-			JSONObject obj  = (JSONObject) parser.parse(json);
-			return new Document(obj);
-		} catch (ParseException e) {
-			return new Document();
-		} catch (ClassCastException e){
-			return new Document();
-		}
-	}
-	
 	public boolean containsKey(String key){
 		return obj.containsKey(key);
 	}

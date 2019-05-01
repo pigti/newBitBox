@@ -22,4 +22,4 @@ public class Peer2
         
         new ServerMain(port, peers, path);
     }
-}
+}	
