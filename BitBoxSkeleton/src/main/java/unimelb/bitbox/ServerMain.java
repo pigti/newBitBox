@@ -3,15 +3,19 @@ package unimelb.bitbox;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Base64.Decoder;
+import java.util.List;
 import java.util.logging.Logger;
+
+import org.java_websocket.WebSocket;
 
 import unimelb.bitbox.util.*;
 import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
 
 public class ServerMain implements FileSystemObserver {
 	private static Logger log = Logger.getLogger(ServerMain.class.getName());
+	private List<WebSocket> sockets = new ArrayList<WebSocket>();
 	protected FileSystemManager fileSystemManager;
 	protected Server peerServer;
 	protected Client peerClient;
@@ -21,6 +25,23 @@ public class ServerMain implements FileSystemObserver {
 		fileSystemManager = new FileSystemManager(path, this);
 		initServer(serverPort);
 		initClient(peers);
+		//A thread which sync the directory periodically
+		Thread t = new Thread() {
+			public void run() {
+				while (true) {
+					if (sockets.size() != 0) {
+						sync();
+					}
+					try {
+						int interval = Integer.parseInt(Configuration.getConfigurationValue("syncInterval")) * 1000;
+						Thread.sleep(interval);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		};
+		t.start();
 	}
 
 	private void initServer(int serverPort) {
@@ -31,38 +52,129 @@ public class ServerMain implements FileSystemObserver {
 	public void initClient(String[] peers) {
 		peerClient = new Client(this, peers);
 	}
+	
+	public void addSocket(WebSocket ws) {
+		sockets.add(ws);
+	}
+	
+	public void delSocket(WebSocket ws) {
+		if(sockets.contains(ws)){
+			sockets.remove(ws);
+		};
+	}
+	
+	public int getSocketSize() {
+		return sockets.size();
+	}
+	
+	public ArrayList<HostPort> getConnected(){
+		ArrayList<HostPort> hp = new ArrayList<>();
+		for (WebSocket ws : sockets) {
+			hp.add(new HostPort(ws.getLocalSocketAddress().toString().substring(1)));
+		}
+		return hp;
+	}
+	
+	//check if the server have shaked with this client before
+	public boolean containsSocket(WebSocket ws) {
+		for (WebSocket client : sockets) {
+			String shaked = client.getLocalSocketAddress().toString().substring(1);
+			String newClient = ws.getRemoteSocketAddress().toString().substring(1);
+			if(shaked.equals(newClient)) return true;
+		}
+		return false;
+	}
+	
+	public void broadcast(String message) {
+		if (sockets.size() == 0) {
+			return;
+		}
+		System.out.println("===Start===");
+		for (WebSocket socket : sockets) {
+			peerClient.write(socket, message);
+		}
+		System.out.println("===End===");
+	}
+	
+	//General & periodically sync
+	public void sync() {
+		ArrayList<FileSystemEvent> pathevents = fileSystemManager.generateSyncEvents();
+		System.out.println("===Sync Begins===");
+		for(FileSystemEvent pathevent : pathevents) {
+			log.info(pathevent.toString());
+			processFileSystemEvent(pathevent);
+		}
+		System.out.println("===Sync Ends===");
+	}
+	
+	//First Connection sync after handshake
+	public void sync(WebSocket ws) {
+		ArrayList<FileSystemEvent> pathevents = fileSystemManager.generateSyncEvents();
+		System.out.println("===Sync Begins===");
+		for(FileSystemEvent pathevent : pathevents) {
+			log.info(pathevent.toString());
+			processFileSystemEvent(pathevent, ws);
+		}
+		System.out.println("===Sync Ends===");
+	}
 
-	@Override
-	public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
+	//Broadcast to only the client of the new connection
+	public void processFileSystemEvent(FileSystemEvent fileSystemEvent, WebSocket ws) {
 		// process events
 		System.out.println(fileSystemEvent);
+		Document request = null;
 		switch (fileSystemEvent.event) {
 		case FILE_CREATE:
-			fileCreateHandler(fileSystemEvent);
+			request = Protocol.fileCreateRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
 			break;
 		case FILE_DELETE:
-			fileDeleteHandler(fileSystemEvent);
+			request = Protocol.fileDeleteRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
 			break;
 		case DIRECTORY_CREATE:
-			dirCreateHandler(fileSystemEvent);
+			request = Protocol.dirCreateRequest(fileSystemEvent.pathName);
 			break;
 		case DIRECTORY_DELETE:
-			 dirDeleteHandler(fileSystemEvent);
-			// TODO
+			request = Protocol.dirDeleteRequest(fileSystemEvent.pathName);
 			break;
 		case FILE_MODIFY:
-			// TODO
+			request = Protocol.fileModifyRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
 			break;
 		default:
 			// TODO
 			break;
 		}
+		if (request != null)
+			peerServer.write(ws, request.toJson());
 	}
-
-	// Handler for a file create <event>, generate a <request> for create a file
-	private void fileCreateHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.fileCreateRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
+	
+	@Override
+	//Broadcast to all subscribers
+	public void processFileSystemEvent(FileSystemEvent fileSystemEvent) {
+		// process events
+		System.out.println(fileSystemEvent);
+		Document request = null;
+		switch (fileSystemEvent.event) {
+		case FILE_CREATE:
+			request = Protocol.fileCreateRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
+			break;
+		case FILE_DELETE:
+			request = Protocol.fileDeleteRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
+			break;
+		case DIRECTORY_CREATE:
+			request = Protocol.dirCreateRequest(fileSystemEvent.pathName);
+			break;
+		case DIRECTORY_DELETE:
+			request = Protocol.dirDeleteRequest(fileSystemEvent.pathName);
+			break;
+		case FILE_MODIFY:
+			request = Protocol.fileModifyRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
+			break;
+		default:
+			// TODO
+			break;
+		}
+		if (request != null)
+			broadcast(request.toJson());
 	}
 
 	// Handler for a file create <request>, <response> the status of the file loader
@@ -105,12 +217,6 @@ public class ServerMain implements FileSystemObserver {
 			response.append("status", "false");
 		}
 		return response.toJson();
-	}
-
-	// Handler for a file create <event>, generate a <request> for delete a file
-	private void fileDeleteHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.fileDeleteRequest(fileSystemEvent.fileDescriptor.toDoc(), fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
 	}
 
 	// Handler for a file delete <request>, <response> the status of the file loader
@@ -158,7 +264,8 @@ public class ServerMain implements FileSystemObserver {
 
 		Document response = Protocol.fileBytesRequest(fileDescriptor, pathName);
 
-		if (request.getString("command").equals(Protocol.FILE_CREATE_RESPONSE)) {
+		if (request.getString("command").equals(Protocol.FILE_CREATE_RESPONSE)
+				|| request.getString("command").equals(Protocol.FILE_MODIFY_RESPONSE)) {
 			length = fileSize <= max ? fileSize : max;
 			response.append("position", 0);
 			response.append("length", length);
@@ -249,13 +356,6 @@ public class ServerMain implements FileSystemObserver {
 		return null;
 	}
 
-	// Handler for a directoryCreation <event>, generate a <request> for delete a
-	// file
-	private void dirCreateHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.dirCreateRequest(fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
-	}
-
 	public String createDirRequestHandler(Document request) {
 		String pathName = request.getString("pathName");
 
@@ -285,13 +385,6 @@ public class ServerMain implements FileSystemObserver {
 		return response.toJson();
 	}
 
-	// Handler for a directoryCreation <event>, generate a <request> for delete a
-	// file
-	private void dirDeleteHandler(FileSystemEvent fileSystemEvent) {
-		Document request = Protocol.dirDeleteRequest(fileSystemEvent.pathName);
-		peerClient.broadcast(request.toJson());
-	}
-	
 	public String deleteDirRequestHandler(Document request) {
 		String pathName = request.getString("pathName");
 
@@ -320,16 +413,41 @@ public class ServerMain implements FileSystemObserver {
 		return response.toJson();
 	}
 
-	private void fileModifyHandler(FileSystemEvent fileSystemEvent) {
+	public String modifyFileRequestHandler(Document request) {
+		Document fileDescriptor = (Document) request.get("fileDescriptor");
+		String pathName = request.getString("pathName");
+		String md5 = fileDescriptor.getString("md5");
+		long lastModified = fileDescriptor.getLong("lastModified");
 
+		Document response = Protocol.fileModifyResponse(fileDescriptor, pathName);
+
+		try {
+			String message;
+			boolean status;
+
+			if (!fileSystemManager.isSafePathName(pathName)) {
+				message = "Unsafe pathname given";
+				status = false;
+			} else {
+				status = fileSystemManager.modifyFileLoader(pathName, md5, lastModified);
+				message = "file loader ready";
+				if (!status) {
+					message = "it is not a valid modification";
+				}
+			}
+			response.append("message", message);
+			response.append("status", status);
+		} catch (Exception e) {
+			e.printStackTrace();
+			// TODO: Handle exceptions with different message
+			response.append("message", "internal server error");
+			response.append("status", "false");
+		}
+		return response.toJson();
 	}
 
-	public void fileModifyHandler(Document request) {
+	/*private void invalidEventHandler(Document request) {
 
-	}
-
-	private void invalidEventHandler(Document request) {
-
-	}
+	}*/
 
 }
