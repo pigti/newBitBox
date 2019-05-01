@@ -15,13 +15,19 @@ import unimelb.bitbox.util.FileSystemManager.FileSystemEvent;
 
 public class ServerMain implements FileSystemObserver {
 	private static Logger log = Logger.getLogger(ServerMain.class.getName());
+	// Track the sockets for avoiding duplicates and tracking the number of connections
 	private List<WebSocket> sockets = new ArrayList<WebSocket>();
+	// Track the server info of current conncetions
+	private ArrayList<HostPort> connected = new ArrayList<HostPort>();
 	protected FileSystemManager fileSystemManager;
+	// The address of recipient port the current server
+	protected HostPort serverAddr;
 	protected Server peerServer;
 	protected Client peerClient;
 
 	public ServerMain(int serverPort, String[] peers, String path)
 			throws NumberFormatException, IOException, NoSuchAlgorithmException {
+		serverAddr = new HostPort(Configuration.getConfigurationValue("advertisedName"), serverPort);
 		fileSystemManager = new FileSystemManager(path, this);
 		initServer(serverPort);
 		initClient(peers);
@@ -44,6 +50,7 @@ public class ServerMain implements FileSystemObserver {
 		t.start();
 	}
 
+	// Simple initialisation methods and setter and getters
 	private void initServer(int serverPort) {
 		peerServer = new Server(this);
 		peerServer.initP2PServer(serverPort);
@@ -51,6 +58,12 @@ public class ServerMain implements FileSystemObserver {
 
 	public void initClient(String[] peers) {
 		peerClient = new Client(this, peers);
+	}
+	
+	public void addHp(Object o) {
+		if(o instanceof Document) {
+			connected.add(new HostPort((Document)o));
+		}
 	}
 	
 	public void addSocket(WebSocket ws) {
@@ -68,11 +81,11 @@ public class ServerMain implements FileSystemObserver {
 	}
 	
 	public ArrayList<HostPort> getConnected(){
-		ArrayList<HostPort> hp = new ArrayList<>();
-		for (WebSocket ws : sockets) {
-			hp.add(new HostPort(ws.getLocalSocketAddress().toString().substring(1)));
-		}
-		return hp;
+		return connected;
+	}
+	
+	public HostPort getAddr() {
+		return serverAddr;
 	}
 	
 	//check if the server have shaked with this client before
@@ -85,6 +98,7 @@ public class ServerMain implements FileSystemObserver {
 		return false;
 	}
 	
+	// broadcast the message to all subscribors
 	public void broadcast(String message) {
 		if (sockets.size() == 0) {
 			return;
@@ -116,6 +130,11 @@ public class ServerMain implements FileSystemObserver {
 			processFileSystemEvent(pathevent, ws);
 		}
 		System.out.println("===Sync Ends===");
+	}
+	
+	//If the peer is not on the client list, add it to perform a second handshake
+	public void checkNewClient(Document hp) {
+		peerClient.addPeer(hp);
 	}
 
 	//Broadcast to only the client of the new connection
@@ -355,7 +374,11 @@ public class ServerMain implements FileSystemObserver {
 		}
 		return null;
 	}
-
+	
+	/*
+	 * Handler for a create Directory <request>, which builds 
+	 * a directory if possible
+	 */
 	public String createDirRequestHandler(Document request) {
 		String pathName = request.getString("pathName");
 
@@ -385,6 +408,10 @@ public class ServerMain implements FileSystemObserver {
 		return response.toJson();
 	}
 
+	/*
+	 * Handler for a delete Directory <request>, which deletes 
+	 * a directory if possible
+	 */
 	public String deleteDirRequestHandler(Document request) {
 		String pathName = request.getString("pathName");
 
@@ -412,7 +439,11 @@ public class ServerMain implements FileSystemObserver {
 		}
 		return response.toJson();
 	}
-
+	
+	/*
+	 * Handler for a modify Directory <request>, which get the modify container
+	 * ready if possible
+	 */
 	public String modifyFileRequestHandler(Document request) {
 		Document fileDescriptor = (Document) request.get("fileDescriptor");
 		String pathName = request.getString("pathName");
@@ -445,9 +476,4 @@ public class ServerMain implements FileSystemObserver {
 		}
 		return response.toJson();
 	}
-
-	/*private void invalidEventHandler(Document request) {
-
-	}*/
-
 }

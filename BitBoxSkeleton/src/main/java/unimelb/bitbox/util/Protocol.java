@@ -20,19 +20,18 @@ public class Protocol {
 	public static final String FILE_BYTES_REQUEST = "FILE_BYTES_REQUEST";
 	public static final String FILE_BYTES_RESPONSE = "FILE_BYTES_RESPONSE";
 
-	public static Document handShakeRequest(String addr) {
+	public static Document handShakeRequest(HostPort hp) {
 		Document document = new Document();
+		hp.host = Configuration.getConfigurationValue("advertisedName");
 		document.append("command", HANDSHAKE_REQUEST);
-		HostPort hostPort = new HostPort(addr);
-		document.append("hostPort", hostPort.toDoc());
+		document.append("hostPort", hp.toDoc());
 		return document;
 	}
 
-	public static Document handShakeResponse(String port) {
+	public static Document handShakeResponse(HostPort hp) {
 		Document document = new Document();
 		document.append("command", HANDSHAKE_RESPONSE);
-		HostPort hostPort = new HostPort(Configuration.getConfigurationValue("advertisedName") + ":" + port);
-		document.append("hostPort", hostPort.toDoc());
+		document.append("hostPort", hp.toDoc());
 		return document;
 	}
 
@@ -40,14 +39,11 @@ public class Protocol {
 		Document document = new Document();
 		document.append("command", CONNECTION_REFUSED);
 		document.append("message", "connection limit reached");
-		String hpDoc = "[";
+		ArrayList<Document> docs = new ArrayList<>();
 		for (HostPort hostPort : hp) {
-			hpDoc += hostPort.toDoc().toString();
-			hpDoc += ",";
+			docs.add(hostPort.toDoc());
 		}
-		hpDoc = hpDoc.substring(0, hpDoc.length() - 2);
-		hpDoc += "]";
-		document.append("peers", hpDoc);
+		document.append("hostPort", docs);
 		return document;
 	}
 
