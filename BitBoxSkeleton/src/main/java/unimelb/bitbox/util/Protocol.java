@@ -22,6 +22,7 @@ public class Protocol {
 
 	public static Document handShakeRequest(HostPort hp) {
 		Document document = new Document();
+		//Give advertised Host name, especially when running in an internal network
 		hp.host = Configuration.getConfigurationValue("advertisedName");
 		document.append("command", HANDSHAKE_REQUEST);
 		document.append("hostPort", hp.toDoc());
