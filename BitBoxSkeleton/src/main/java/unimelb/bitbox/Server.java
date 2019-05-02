@@ -4,9 +4,13 @@ import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 import org.json.simple.JSONObject;
@@ -23,7 +27,8 @@ public class Server {
 
 	public void initP2PServer(int port) {
 		try {
-			WebSocketServer socketServer = new WebSocketServer(new InetSocketAddress(InetAddress.getLocalHost(),port)) {
+			WebSocketServer socketServer = new WebSocketServer(
+					new InetSocketAddress(InetAddress.getLocalHost(), port)) {
 				public void onOpen(WebSocket webSocket, ClientHandshake clientHandshake) {
 				}
 
@@ -32,9 +37,13 @@ public class Server {
 					serverMain.delSocket(webSocket);
 				}
 
-				public void onMessage(WebSocket webSocket, String msg) {
-					System.out.println("<Server> Message received. \n<Message> " + msg);
+				public void onMessage(WebSocket webSocket, ByteBuffer bb) {
 					try {
+						// Parse UTF-8 message
+						byte[] bs = new byte[bb.remaining()];
+						bb.get(bs);
+						String msg = new String(bs, "UTF-8");
+						System.out.println("<Server> Message received. \n<Message> " + msg);
 						JSONParser parser = new JSONParser();
 						Document request = new Document((JSONObject) parser.parse(msg));
 						if (Protocol.valid(request)) {
@@ -43,13 +52,14 @@ public class Server {
 								// Refuse the handshake and return the list of peers
 								if (serverMain.getSocketSize() < Integer
 										.parseInt(Configuration.getConfigurationValue("maximumIncommingConnections"))) {
-									serverMain.checkNewClient((Document)request.get("hostPort"));
+									serverMain.checkNewClient((Document) request.get("hostPort"));
 									write(webSocket, Protocol.handShakeResponse(serverMain.getAddr()).toString());
 									serverMain.addHp(request.get("hostPort"));
 								} else if (serverMain.containsSocket(webSocket)) {
 									// Send Invalid Protocol
 									write(webSocket, Protocol.invalidResponse(1).toString());
-									webSocket.close(1, "Invalid message");;
+									webSocket.close(1, "Invalid message");
+									;
 								} else {
 									ArrayList<HostPort> hp = serverMain.getConnected();
 									write(webSocket, Protocol.connectionRefused(hp).toString());
@@ -94,9 +104,12 @@ public class Server {
 						} else {
 							// Send Invalid Protocol
 							write(webSocket, Protocol.invalidResponse(2).toString());
-							webSocket.close(1, "Invalid message");;
+							webSocket.close(1, "Invalid message");
+							;
 						}
 					} catch (ParseException e) {
+						e.printStackTrace();
+					} catch (UnsupportedEncodingException e) {
 						e.printStackTrace();
 					}
 				}
@@ -106,6 +119,12 @@ public class Server {
 				}
 
 				public void onStart() {
+				}
+
+				@Override
+				public void onMessage(WebSocket conn, String msg) {
+					System.out.println("<Warning> Uncoded message Received. \n<Message> " + msg);
+					// TODO Auto-generated method stub
 				}
 			};
 			System.out.println(socketServer.getAddress());
@@ -117,12 +136,14 @@ public class Server {
 		System.out.println("<Server> Listening websocket p2p port on: " + port);
 	}
 
-	//send the message
+	// send the message
 	public void write(WebSocket ws, String message) {
-		System.out.println("<Server> Sending message to port: " + 
-				ws.getLocalSocketAddress().getHostString() + " : "+ ws.getLocalSocketAddress().getPort() + "->" +
-				ws.getRemoteSocketAddress().getHostString() + " : "+ ws.getRemoteSocketAddress().getPort() + "\n<Message> "
-				+ message);
-		ws.send(message);
+		System.out.println("<Server> Sending message to port: " + ws.getLocalSocketAddress().getHostString() + " : "
+				+ ws.getLocalSocketAddress().getPort() + " -> " + ws.getRemoteSocketAddress().getHostString() + " : "
+				+ ws.getRemoteSocketAddress().getPort() + "\n<Message> " + message);
+		// Send message in UTF-8
+		byte[] bs = message.getBytes(Charset.forName("UTF-8"));
+		ByteBuffer bb = ByteBuffer.wrap(bs);
+		ws.send(bb);
 	}
 }

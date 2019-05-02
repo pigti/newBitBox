@@ -103,11 +103,11 @@ public class ServerMain implements FileSystemObserver {
 		if (sockets.size() == 0) {
 			return;
 		}
-		System.out.println("===Start===");
+		System.out.println("===Broadcast Start===");
 		for (WebSocket socket : sockets) {
 			peerClient.write(socket, message);
 		}
-		System.out.println("===End===");
+		System.out.println("===Broadcast End===");
 	}
 	
 	//General & periodically sync

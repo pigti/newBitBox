@@ -8,8 +8,12 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import unimelb.bitbox.util.*;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -63,9 +67,13 @@ public class Client {
 				}
 
 				@Override
-				public void onMessage(String msg) {
-					System.out.println("<Client> Message Received. \n<Message> " + msg);
+				public void onMessage(ByteBuffer bb) {
 					try {
+						// Parse UTF-8 message
+						byte[] bs = new byte[bb.remaining()];
+						bb.get(bs);
+						String msg = new String(bs, "UTF-8");
+						System.out.println("<Client> Message Received. \n<Message> " + msg);
 						JSONParser parser = new JSONParser();
 						Document response = new Document((JSONObject) parser.parse(msg));
 						switch (response.getString("command")) {
@@ -105,6 +113,8 @@ public class Client {
 						}
 					} catch (ParseException e) {
 						e.printStackTrace();
+					} catch (UnsupportedEncodingException e) {
+						e.printStackTrace();
 					}
 				}
 
@@ -129,6 +139,12 @@ public class Client {
 					}
 					serverMain.delSocket(this);
 				}
+
+				@Override
+				public void onMessage(String msg) {
+					System.out.println("<Warning> Uncoded message Received. \n<Message> " + msg);
+					// TODO Auto-generated method stub
+				}
 			};
 			socketClient.connect();
 		} catch (URISyntaxException e) {
@@ -152,8 +168,11 @@ public class Client {
 	// send the message
 	public void write(WebSocket ws, String message) {
 		System.out.println("<Client> Sending message to port: " + ws.getLocalSocketAddress().getHostString() + " : "
-				+ ws.getLocalSocketAddress().getPort() + "->" + ws.getRemoteSocketAddress().getHostString() + " : "
+				+ ws.getLocalSocketAddress().getPort() + " -> " + ws.getRemoteSocketAddress().getHostString() + " : "
 				+ ws.getRemoteSocketAddress().getPort() + "\n<Message> " + message);
-		ws.send(message);
+		//Send message in UTF-8
+		byte[] bs = message.getBytes( Charset.forName("UTF-8"));
+		ByteBuffer bb = ByteBuffer.wrap(bs);
+		ws.send(bb);
 	}
 }
